@@ -97,6 +97,55 @@ app.post("/api/users/:_id/exercises", async (req, res) => {
   }
 });
 
+app.get("/api/users/:_id/logs", async (req, res) => {
+  const id = req.params._id;
+  const from = req.query.from;
+  const to = req.query.to;
+  const limit = req.query.limit;
+
+  try {
+    const user = await User.findById(id);
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    let dateFilter = {};
+
+    if (from) {
+      dateFilter.$gte = new Date(from);
+    }
+    if (to) {
+      dateFilter.$lte = new Date(to);
+    }
+
+    let query = { userId: id };
+
+    if (Object.keys(dateFilter).length > 0) {
+      query.date = dateFilter;
+    }
+
+    let exercises = await Exercise.find(query)
+      .limit(limit ? parseInt(limit) : 0)
+      .select("description duration date -_id");
+
+    let log = exercises.map((exercise) => ({
+      description: exercise.description,
+      duration: exercise.duration,
+      date: exercise.date.toDateString(),
+    }));
+
+    res.json({
+      username: user.username,
+      count: log.length,
+      _id: user._id,
+      log: log,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Database error" });
+  }
+});
+
 const listener = app.listen(process.env.PORT || 3000, () => {
   console.log("Your app is listening on port " + listener.address().port);
 });
